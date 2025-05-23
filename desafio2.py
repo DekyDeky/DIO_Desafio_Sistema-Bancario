@@ -1,4 +1,4 @@
-import datetime
+import datetime, os, json
 
 menu_inicial = """[l] Fazer Login
 [2] Criar um Usuário
@@ -15,12 +15,6 @@ menu_principal = """[d] depositar
 
 Insira Letra => """
 
-saldo = 0
-extrato_bancario = ""
-numero_saques = 0
-LIMITE = 500
-LIMITE_SAQUES = 3
-
 numAgencia = "0001"
 
 MSG_NEGATIVO = "Insira um valor positivo!"
@@ -28,8 +22,11 @@ MSG_SALDO_INSUF = "Saldo Insuficiente!"
 MSG_SALDO_LIMITE = "Valor superior ao Limite de Saque!"
 MSG_SALDO_LIMITE_DIARIO = "Total de Saques Diários Atingido!"
 
-contas_secao = dict()
-contasCorrente_secao = dict()
+saldo = 0
+extrato_bancario = ""
+numero_saques = 0
+LIMITE = 500
+LIMITE_SAQUES = 3
 
 # <----------- Funções para checagem ----------->
 def imprimirErro(msgTipo, msgErro):
@@ -45,15 +42,33 @@ def checarNegativo(input, msgTipo):
         return False
 
 def checarCPFExistente(CPF, mostrarMsg, msgErro):
-    CPFsRegistrados = list(contas_secao.keys())
-
-    for chave in CPFsRegistrados:
-        if CPF == chave:
-            if mostrarMsg == True:
-                imprimirErro(msgErro, "CPF já cadastrado!")
-            return True
+    with open('./db/usuarios.json') as usuarios:
+        if(os.path.getsize('./db/usuarios.json') == 0):
+            return False
         
+        contasDict = json.load(usuarios)
+
+        for chave in contasDict.keys():
+            if CPF == chave:
+                if mostrarMsg == True:
+                    imprimirErro(msgErro, "CPF já cadastrado!")
+                return True
+   
+    if mostrarMsg == False:
+        imprimirErro(msgErro, "CPF não cadastrado!")
     return False
+
+
+# <----------- Funções para JSON ----------->
+def carregarJSON(caminho):
+    with open(caminho, "r") as f:
+        if(os.path.getsize(caminho) > 0):
+            return json.load(f)
+        else: return {}
+
+def escreverJSON(caminho, dict):
+    with open(caminho, 'w') as f:
+        json.dump(dict, f, indent=4)
 
 # <----------- Funções para Montar Strings ----------->
 def montarExtrato(msgTipo, sinal, saldo):
@@ -150,7 +165,6 @@ def criarUsuario():
 
     nome = input("Insira seu nome completo: ").title()
     dataNascimento = input("Insira sua data de nascimento (DD/MM/AAAA): ")
-    dataNascimentoFormat = datetime.datetime.strptime(dataNascimento, "%d/%m/%Y")
     CPF = input("Insira seu CPF (apenas números): ")
 
     if(checarCPFExistente(CPF, True, "Cadastro de Usuário")):
@@ -163,11 +177,11 @@ def criarUsuario():
 
     endereco = f"{logradouro}, {bairro}, {cidade}/{estado}"
 
-    contas_secao[CPF] = {
-        "nome": nome,
-        "dataNascimento": dataNascimentoFormat.date(),
-        "endereco": endereco
-    }
+#    with open('./db/usuarios.json', "r") as usuarios:
+#        if(os.path.getsize('./db/usuarios.json') > 0):
+#            jsonDict = json.load(usuarios)
+#        else:
+#            jsonDict = {}
 
     print(f"""
           
@@ -177,22 +191,49 @@ def criarUsuario():
     Endereço: {endereco}
 
     """)
-    
-    input("Pressione enter para continuar...")  
+
+    print("Deseja criar este usuário?")
+    print("[s] Sim\n[n] Não\n")
+    resposta = input("==>").lower()
+
+    while True:
+        if resposta == 'n':
+            print("Retornado ao menu...")
+            input("Pressione enter para continuar...")
+            return
+        elif resposta == 's':
+            jsonDict = carregarJSON('./db/usuarios.json')
+
+            jsonDict[CPF] = {
+                                "nome": nome,
+                                "dataNascimento": dataNascimento,
+                                "endereco": endereco
+                            }
+
+            escreverJSON('./db/usuarios.json', jsonDict) 
+
+            print("\nUsuário criado com sucesso!")
+            input("Pressione enter para continuar...")  
+            return
+        else:
+            print("Insira uma letra válida!\n\n") 
 
 def criarContaCorrente():
     criarTela("Registrar", "Conta Corrente")
     CPF = input("Insira o CPF da conta: ")
 
     if not (checarCPFExistente(CPF, False, "Cadastro da Conta Corrente")):
+
         return
 
     contaCorr = {"Agencia" : numAgencia, "CPF" : CPF}
 
-    if contasCorrente_secao == {}:
+    dictJson = carregarJSON('./db/contasCorrentes.json')
+
+    if dictJson == {}:
         numContaCorr = 1
     else:
-        numContaCorr = list(contasCorrente_secao.keys())[-1] + 1
+        numContaCorr = int(list(dictJson.keys())[-1]) + 1
 
     while True:
 
@@ -201,7 +242,8 @@ def criarContaCorrente():
         resposta = input("==>").lower()
 
         if resposta == "s":
-            contasCorrente_secao[numContaCorr] = contaCorr
+            dictJson[numContaCorr] = contaCorr
+            escreverJSON('./db/contasCorrentes.json', dictJson)
             print("\nConta Corrente criada com sucesso!")
             input("Pressione enter para continuar...")
             return
