@@ -267,17 +267,19 @@ def menuPrincipal(Usuario, contaAtual):
     
     while True:
 
-        print(saldo)
-        print(extrato_bancario)
+        limparTela()
 
         criarTela("Deky Bank", Usuario)
         opcao = input(menu_principal).lower()
 
         if opcao == "d":
+            limparTela()
             saldo, extrato_bancario = deposito(saldo, extrato_bancario)
         elif opcao == "s":
+            limparTela()
             saldo, extrato_bancario, numero_saques = saque(saldo=saldo, extrato=extrato_bancario, numero_saques=numero_saques)
         elif opcao == "e":
+            limparTela()
             extrato(saldo, extrato_bancario=extrato_bancario)
         elif opcao == "q":
             print("\nAté logo!")
