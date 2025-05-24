@@ -1,4 +1,5 @@
-import datetime, os, json
+import os, json, platform
+from datetime import datetime
 
 menu_inicial = """[l] Fazer Login
 [2] Criar um Usuário
@@ -22,11 +23,11 @@ MSG_SALDO_INSUF = "Saldo Insuficiente!"
 MSG_SALDO_LIMITE = "Valor superior ao Limite de Saque!"
 MSG_SALDO_LIMITE_DIARIO = "Total de Saques Diários Atingido!"
 
-saldo = 0
-extrato_bancario = ""
-numero_saques = 0
 LIMITE = 500
 LIMITE_SAQUES = 3
+
+CONTASCORRENTS_DIR = './db/contasCorrentes.json'
+USUARIOS_DIR = './db/usuarios.json'
 
 # <----------- Funções para checagem ----------->
 def imprimirErro(msgTipo, msgErro):
@@ -41,7 +42,7 @@ def checarNegativo(input, msgTipo):
     else:
         return False
 
-def checarCPFExistente(CPF, mostrarMsg, msgErro):
+def checarCPFExistente(CPF, mostrarMsg, cadastrado, msgErro):
     with open('./db/usuarios.json') as usuarios:
         if(os.path.getsize('./db/usuarios.json') == 0):
             return False
@@ -50,14 +51,13 @@ def checarCPFExistente(CPF, mostrarMsg, msgErro):
 
         for chave in contasDict.keys():
             if CPF == chave:
-                if mostrarMsg == True:
+                if mostrarMsg and cadastrado:
                     imprimirErro(msgErro, "CPF já cadastrado!")
                 return True
    
-    if mostrarMsg == False:
+    if mostrarMsg and not cadastrado:
         imprimirErro(msgErro, "CPF não cadastrado!")
-    return False
-
+    return False    
 
 # <----------- Funções para JSON ----------->
 def carregarJSON(caminho):
@@ -71,11 +71,12 @@ def escreverJSON(caminho, dict):
         json.dump(dict, f, indent=4)
 
 # <----------- Funções para Montar Strings ----------->
-def montarExtrato(msgTipo, sinal, saldo):
-    if msgTipo == "Saque":
-        return f"{msgTipo}:\t\t\t {sinal} R$ {saldo:.2f}\n"
-    else:
-        return f"{msgTipo}:\t\t {sinal} R$ {saldo:.2f}\n"
+def limparTela():
+    sistema = platform.system()
+    if sistema == 'Windows':
+        os.system('cls')
+    elif sistema == 'Linux':
+        os.system('clear')
 
 def criarTela(msg1, msg2):
 
@@ -89,6 +90,10 @@ def criarTela(msg1, msg2):
     +-----------------------+
 """)
 
+def pegarHoje():
+    hoje = datetime.today()
+    return hoje.strftime("%d/%m/%Y %H:%M:%S")
+
 # <----------- Funções de funcionalidades ----------->
 def deposito(saldo, extrato):
 
@@ -98,14 +103,14 @@ def deposito(saldo, extrato):
         return saldo, extrato
 
     saldo += valor
-    extrato += montarExtrato("Depósito", "+", valor)
+    extrato.update({pegarHoje() : f"+{saldo}" })
     print("\n" + "Extrato realizado com sucesso!".center(50, "="))
     print(f" Novo Saldo: R$ {saldo: .2f} ".center(50, "="))
     input("Pressione enter para continuar...")
 
     return saldo, extrato
 
-def saque(saldo=saldo, extrato=extrato_bancario, numero_saques=numero_saques):
+def saque(*, saldo, extrato, numero_saques):
 
     checarLimiteSaques = numero_saques >= LIMITE_SAQUES
 
@@ -140,7 +145,8 @@ def saque(saldo=saldo, extrato=extrato_bancario, numero_saques=numero_saques):
         
     
     saldo -= valor
-    extrato += montarExtrato("Saque", "-", valor)
+    extrato.update({pegarHoje() : f"-{valor}"})
+    #extrato += montarExtrato("Saque", "-", valor)
     numero_saques += 1
 
     print("\n" + "Saque realizado com sucesso!".center(50, "="))
@@ -149,17 +155,56 @@ def saque(saldo=saldo, extrato=extrato_bancario, numero_saques=numero_saques):
 
     return saldo, extrato, numero_saques
 
-def extrato(saldo, extrato_bancario=extrato_bancario):
+def extrato(saldo, /, *, extrato_bancario):
     print("\n" + " Extrato Bancário ".center(50, "="))
     if not extrato_bancario:
         print("Não foram realizadas movimentações.".center(50," "))
     else:
-        print(extrato_bancario)
+        #print(extrato_bancario)
+        for chave, valor in extrato_bancario.items():
+            print(f"-> {chave} : {valor}")
         print(f"Saldo: R$ {saldo:.2f}")
     print("".center(50,"="))
     input("Pressione enter para continuar...")
 
-# <----------- Funções de Criação de Conta ----------->
+# <----------- Funções de Conta ----------->
+def criarContaCorrente(CPF):
+    contaCorr = {"Agencia" : numAgencia, "CPF" : CPF, "Saldo" : 0, "Extrato" : {}}
+    dictJson = carregarJSON('./db/contasCorrentes.json')
+
+    if dictJson == {}:
+        numContaCorr = 1
+    else:
+        numContaCorr = int(list(dictJson.keys())[-1]) + 1
+
+    while True:
+
+        print(f"Deseja criar a conta corrente {numContaCorr} na Agência {numAgencia} no CPF: {CPF}?")
+        print("[s] Sim\n[n] Não\n")
+        resposta = input("==>").lower()
+
+        if resposta == "s":
+            dictJson[numContaCorr] = contaCorr
+            escreverJSON('./db/contasCorrentes.json', dictJson)
+            print("\nConta Corrente criada com sucesso!")
+            input("Pressione enter para continuar...")
+            break
+        elif resposta == "n":
+            print("Criação da conta corrente cancelada!")
+            input("Pressione enter para continuar...")
+            break
+        else:
+            print("Insira uma letra válida!\n\n")
+
+def criarContaCorrenteManual():
+    criarTela("Registrar", "Conta Corrente")
+    CPF = input("Insira o CPF da conta: ")
+
+    if not (checarCPFExistente(CPF, True, False, "Cadastro da Conta Corrente")):
+        return
+
+    criarContaCorrente(CPF)
+
 def criarUsuario():
     criarTela("Registrar", "Usuário")
 
@@ -167,7 +212,7 @@ def criarUsuario():
     dataNascimento = input("Insira sua data de nascimento (DD/MM/AAAA): ")
     CPF = input("Insira seu CPF (apenas números): ")
 
-    if(checarCPFExistente(CPF, True, "Cadastro de Usuário")):
+    if(checarCPFExistente(CPF, True, True, "Cadastro de Usuário")):
         return
 
     logradouro = input("Insira sua Rua/Logradouro: ")
@@ -176,12 +221,6 @@ def criarUsuario():
     estado = input("Insira a Sigla do seu Estado: ")
 
     endereco = f"{logradouro}, {bairro}, {cidade}/{estado}"
-
-#    with open('./db/usuarios.json', "r") as usuarios:
-#        if(os.path.getsize('./db/usuarios.json') > 0):
-#            jsonDict = json.load(usuarios)
-#        else:
-#            jsonDict = {}
 
     print(f"""
           
@@ -213,78 +252,107 @@ def criarUsuario():
             escreverJSON('./db/usuarios.json', jsonDict) 
 
             print("\nUsuário criado com sucesso!")
-            input("Pressione enter para continuar...")  
+
+            criarContaCorrente(CPF)
+            
             return
         else:
             print("Insira uma letra válida!\n\n") 
 
-def criarContaCorrente():
-    criarTela("Registrar", "Conta Corrente")
-    CPF = input("Insira o CPF da conta: ")
+def menuPrincipal(Usuario, contaAtual):
 
-    if not (checarCPFExistente(CPF, False, "Cadastro da Conta Corrente")):
-
-        return
-
-    contaCorr = {"Agencia" : numAgencia, "CPF" : CPF}
-
-    dictJson = carregarJSON('./db/contasCorrentes.json')
-
-    if dictJson == {}:
-        numContaCorr = 1
-    else:
-        numContaCorr = int(list(dictJson.keys())[-1]) + 1
-
+    saldo = contaAtual["Saldo"]
+    extrato_bancario = contaAtual["Extrato"]
+    numero_saques = 0
+    
     while True:
 
-        print(f"Deseja criar a conta corrente {numContaCorr} na Agência {numAgencia} no CPF: {CPF}?")
-        print("[s] Sim\n[n] Não\n")
-        resposta = input("==>").lower()
+        print(saldo)
+        print(extrato_bancario)
 
-        if resposta == "s":
-            dictJson[numContaCorr] = contaCorr
-            escreverJSON('./db/contasCorrentes.json', dictJson)
-            print("\nConta Corrente criada com sucesso!")
-            input("Pressione enter para continuar...")
-            return
-        elif resposta == "n":
-            print("Retornado ao menu...")
-            input("Pressione enter para continuar...")
-            return
+        criarTela("Deky Bank", Usuario)
+        opcao = input(menu_principal).lower()
+
+        if opcao == "d":
+            saldo, extrato_bancario = deposito(saldo, extrato_bancario)
+        elif opcao == "s":
+            saldo, extrato_bancario, numero_saques = saque(saldo=saldo, extrato=extrato_bancario, numero_saques=numero_saques)
+        elif opcao == "e":
+            extrato(saldo, extrato_bancario=extrato_bancario)
+        elif opcao == "q":
+            print("\nAté logo!")
+            input("Pressione enter para continuar...")       
+            return saldo, extrato_bancario
         else:
-            print("Insira uma letra válida!\n\n")
+            print("\nOperação inválida, por favor selecione novamente a operação desejada.")
+            input("Pressione enter para continuar...")
 
-#def menuPrincipal():
-#    while True:
-#
-#        criarTela("Deky Bank", "Conta: A1")
-#        opcao = input(menu_principal).lower()
-#
-#        if opcao == "d":
-#            saldo, extrato_bancario = deposito(saldo, extrato_bancario)
-#        elif opcao == "s":
-#            saldo, extrato_bancario, numero_saques = saque(saldo, extrato_bancario, numero_saques)
-#        elif opcao == "e":
-#            extrato(saldo, extrato_bancario)
-#        elif opcao == "q":
-#            print("\nAté logo!")
-#            input("Pressione enter para continuar...")       
-#            break
-#        else:
-#            print("\nOperação inválida, por favor selecione novamente a operação desejada.")
-#            input("Pressione enter para continuar...")
+def fazerLogin():
+    criarTela("Deky Bank", "Login")
+    CPF = input("Insira seu CPF: ")
 
+    if not (checarCPFExistente(CPF, True, False, "Login")):
+        return
+
+    contasCorrentesSessao = []
+    numContas = 0
+    stringMenu = ""
+
+    contasCorrentes = carregarJSON(CONTASCORRENTS_DIR)
+    
+    for chave in contasCorrentes:
+        if contasCorrentes[chave]["CPF"] == CPF:
+            contasCorrentesSessao.append(contasCorrentes[chave])
+            numContas += 1
+            chaveAtual = chave
+            stringMenu += f"[{numContas}] {numAgencia} - {chave}\n"
+
+    if contasCorrentes == {}:
+        imprimirErro("Login", "O usuário não possui Conta Corrente")
+        return
+    
+    print(f"Logando em {CPF}...")
+    input("Pressione enter para continuar...") 
+
+    limparTela()
+
+    if len(contasCorrentesSessao) > 1:
+        criarTela("Deky Bank", "Contas Correntes")
+        print(stringMenu)
+        SelecaoAtual = input("Selecione uma conta corrente: ")
+        contaAtual = contasCorrentesSessao[int(SelecaoAtual)-1]
+    elif len(contasCorrentesSessao) == 1:
+        contaAtual = contasCorrentesSessao[0]
+
+    usuarioAtual = carregarJSON(USUARIOS_DIR)[CPF]
+
+    resultadoSaldo, resultadoExtrato = menuPrincipal(usuarioAtual["nome"], contaAtual)
+
+    contaAtual["Saldo"] = resultadoSaldo
+    contaAtual["Extrato"] = resultadoExtrato
+
+    contasCorrentes[chaveAtual] = contaAtual
+
+    escreverJSON(CONTASCORRENTS_DIR, contasCorrentes)
+
+
+# <----------- Menu Inicial ----------->
 while True:
+
+    limparTela()
 
     criarTela("Deky Bank", "Bem-vindo")
     opcao = input(menu_inicial).lower()
 
     if opcao == "1":
-        print("Fazer Login...")
+        limparTela()
+        fazerLogin()
     elif opcao == "2":
+        limparTela()
         criarUsuario()
     elif opcao == "3":
-        criarContaCorrente()
+        limparTela()
+        criarContaCorrenteManual()
     elif opcao == "4":
         print("Entrar como Administrador...")
     elif opcao == "q":
@@ -294,8 +362,3 @@ while True:
     else :
        print("\nOperação inválida, por favor selecione novamente a operação desejada.")
        input("Pressione enter para continuar...") 
-
-
-
-
-
