@@ -12,6 +12,7 @@ Insira uma opção => """
 menu_principal = """[d] depositar
 [s] Sacar
 [e] Extrato
+[t] Transferência
 [q] Sair
 
 Insira Letra => """
@@ -25,6 +26,7 @@ MSG_SALDO_LIMITE_DIARIO = "Total de Saques Diários Atingido!"
 
 LIMITE = 500
 LIMITE_SAQUES = 3
+LIMITE_TRANSFERENCIA = 10
 
 CONTASCORRENTS_DIR = './db/contasCorrentes.json'
 USUARIOS_DIR = './db/usuarios.json'
@@ -60,9 +62,12 @@ def checarCPFExistente(CPF, mostrarMsg, cadastrado, msgErro):
     return False    
 
 def resetarSaquesDiarios(extrato, saques_diarios):
-    ultimaData = datetime.strptime(list(extrato.keys())[-1], "%d/%m/%Y %H:%M:%S")
-    if ultimaData.date() < datetime.today().date(): return 0
-    else: return saques_diarios
+    if extrato == {}:
+        return 0
+    else:
+        ultimaData = datetime.strptime(list(extrato.keys())[-1], "%d/%m/%Y %H:%M:%S")
+        if ultimaData.date() < datetime.today().date(): return 0
+        else: return saques_diarios
 
 # <----------- Funções para JSON ----------->
 def carregarJSON(caminho):
@@ -148,8 +153,6 @@ def saque(*, saldo, extrato, numero_saques):
         imprimirErro("Saque", MSG_SALDO_LIMITE)
         return saldo, extrato, numero_saques
 
-        
-    
     saldo -= valor
     extrato.update({pegarHoje() : { "Saque" : f"-{valor}"}})
     #extrato += montarExtrato("Saque", "-", valor)
@@ -166,14 +169,79 @@ def extrato(saldo, /, *, extrato_bancario):
     if not extrato_bancario:
         print("Não foram realizadas movimentações.".center(50," "))
     else:
-        #print(extrato_bancario)
         for chave, valor in extrato_bancario.items():
             for move, quant in valor.items():
-                print(f"-> {chave} | {move} : {quant}")
+                if move == "Transferencia":
+                    print(f"-> {chave} | {move} : R$ {quant['valor']:.2f} | {quant['remetente']} -> {quant['destinatario']}")
+                else:
+                    print(f"-> {chave} | {move} : R$ {quant:.2f}")
             
         print(f"Saldo: R$ {saldo:.2f}")
     print("".center(50,"="))
     input("Pressione enter para continuar...")
+
+def transferencia(saldo, extrato_bancario, totalTransferencias, numConta):
+    
+    checarLimite = totalTransferencias > LIMITE_TRANSFERENCIA
+    if checarLimite:
+        imprimirErro("Transferência", "Limite de Transferências diárias atingido!")
+        return saldo, extrato_bancario, totalTransferencias
+
+    agenciaTransf = input("Insira o número de Agência da conta: ")
+
+    if agenciaTransf != numAgencia:
+        imprimirErro("Transferência", "Agência Desconhecida!")
+        return saldo, extrato_bancario, totalTransferencias
+
+    contaTransf = input("Insira o número da conta que deseja transferir: ")
+
+    contasCorrentes = carregarJSON(CONTASCORRENTS_DIR)
+
+    if not str(contaTransf) in list(contasCorrentes.keys()):
+        imprimirErro("Transferência", "Conta não encontrada!")
+        return saldo, extrato_bancario, totalTransferencias
+
+    if contaTransf == numConta:
+        imprimirErro("Transferência", "Não é possível transferir para si mesmo!")
+        return saldo, extrato_bancario, totalTransferencias
+
+    valor = int(input("Insira o valor a ser transferido: "))
+    
+    checarSaldo = valor > saldo
+    if(checarNegativo(valor, "transferência")):
+        return saldo, extrato_bancario, totalTransferencias
+    
+    if checarSaldo:
+        imprimirErro("Saque", MSG_SALDO_INSUF)
+        return saldo, extrato, totalTransferencias
+    
+    print(f"\n Deseja fazer uma transferência de {valor:.2f} para a conta {numAgencia} - {contaTransf}?")
+
+    while True:
+        resposta = input("[s] Sim \n[n] Não \n=>").lower()
+
+        if resposta == 'n': 
+            imprimirErro("Transferência", "Transferência cancelada")
+            return saldo, extrato_bancario, totalTransferencias
+        elif resposta == 's':
+            saldo -= valor
+            extrato_bancario.update({pegarHoje() : { 
+                "Transferencia" : {   
+                    "valor" : valor, 
+                    "remetente" : numConta,
+                    "destinatario" : contaTransf
+                   }}})
+            totalTransferencias += 1
+
+            print("\n" + "Transferência realizada com sucesso!".center(50, "="))
+            print(f" Novo Saldo: R$ {saldo:.2f} ".center(50, "="))
+            input("Pressione enter para continuar...")
+
+            return saldo, extrato_bancario, totalTransferencias
+        
+        else:
+            print("\n Insira um valor válido! \n")   
+
 
 # <----------- Funções de Conta ----------->
 def criarContaCorrente(CPF):
@@ -267,11 +335,12 @@ def criarUsuario():
         else:
             print("Insira uma letra válida!\n\n") 
 
-def menuPrincipal(Usuario, contaAtual):
+def menuPrincipal(Usuario, contaAtual, numConta):
 
     saldo = contaAtual["Saldo"]
     extrato_bancario = contaAtual["Extrato"]
     numero_saques = resetarSaquesDiarios(contaAtual["Extrato"], contaAtual["Saques_Diarios"])
+    totalTransferencias = 0
     
     while True:
 
@@ -289,10 +358,13 @@ def menuPrincipal(Usuario, contaAtual):
         elif opcao == "e":
             limparTela()
             extrato(saldo, extrato_bancario=extrato_bancario)
+        elif opcao == "t":
+            limparTela()
+            saldo, extrato_bancario, totalTransferencias = transferencia(saldo, extrato_bancario, totalTransferencias, numConta)
         elif opcao == "q":
             print("\nAté logo!")
             input("Pressione enter para continuar...")       
-            return saldo, extrato_bancario, numero_saques
+            return saldo, extrato_bancario, numero_saques, totalTransferencias
         else:
             print("\nOperação inválida, por favor selecione novamente a operação desejada.")
             input("Pressione enter para continuar...")
@@ -305,6 +377,7 @@ def fazerLogin():
         return
 
     contasCorrentesSessao = []
+    numContasCorren = []
     numContas = 0
     stringMenu = ""
 
@@ -313,6 +386,7 @@ def fazerLogin():
     for chave in contasCorrentes:
         if contasCorrentes[chave]["CPF"] == CPF:
             contasCorrentesSessao.append(contasCorrentes[chave])
+            numContasCorren.append(chave)
             numContas += 1
             chaveAtual = chave
             stringMenu += f"[{numContas}] {numAgencia} - {chave}\n"
@@ -331,16 +405,19 @@ def fazerLogin():
         print(stringMenu)
         SelecaoAtual = input("Selecione uma conta corrente: ")
         contaAtual = contasCorrentesSessao[int(SelecaoAtual)-1]
+        numContaAtual = numContasCorren[int(SelecaoAtual)-1]
     elif len(contasCorrentesSessao) == 1:
         contaAtual = contasCorrentesSessao[0]
+        numContaAtual = numContasCorren[0]
 
     usuarioAtual = carregarJSON(USUARIOS_DIR)[CPF]
 
-    resultadoSaldo, resultadoExtrato, resultadoNumero_Saques = menuPrincipal(usuarioAtual["nome"], contaAtual)
+    resultadoSaldo, resultadoExtrato, resultadoNumero_Saques, totalTransferencias = menuPrincipal(usuarioAtual["nome"], contaAtual, numContaAtual)
 
     contaAtual["Saldo"] = resultadoSaldo
     contaAtual["Extrato"] = resultadoExtrato
     contaAtual["Saques_Diarios"] = resultadoNumero_Saques
+    contaAtual["Transf_Diarias"] = totalTransferencias
 
     contasCorrentes[chaveAtual] = contaAtual
 
