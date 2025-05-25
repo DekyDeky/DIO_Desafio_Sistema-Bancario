@@ -15,7 +15,6 @@ O desafio propôs a criação de um sistema bancário simples de apenas uma cont
 - Também deve exibir o saldo atual da conta
 - Se não houve movimentação na conta, deve-se exibir a mensagem "Não foram realizadas movimentações."
 
-
 ## Sobre o Desafio 2 🎯 (desafio2.py)
 O desafio 2 se trata de uma atualização do sistema bancário, onde é necessário a atualização das funções criadas anteriomente e a adição de 2 novas funções.
 ### Requisitos - Atualização das funções: Depósito, Saque e Extrato 🔝

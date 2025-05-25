@@ -24,7 +24,7 @@ MSG_SALDO_LIMITE = "Valor superior ao Limite de Saque!"
 MSG_SALDO_LIMITE_DIARIO = "Total de Saques Diários Atingido!"
 
 LIMITE = 500
-LIMITE_SAQUES = 10
+LIMITE_SAQUES = 3
 
 CONTASCORRENTS_DIR = './db/contasCorrentes.json'
 USUARIOS_DIR = './db/usuarios.json'
