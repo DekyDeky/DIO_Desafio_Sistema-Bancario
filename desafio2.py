@@ -24,7 +24,7 @@ MSG_SALDO_LIMITE = "Valor superior ao Limite de Saque!"
 MSG_SALDO_LIMITE_DIARIO = "Total de Saques Diários Atingido!"
 
 LIMITE = 500
-LIMITE_SAQUES = 3
+LIMITE_SAQUES = 10
 
 CONTASCORRENTS_DIR = './db/contasCorrentes.json'
 USUARIOS_DIR = './db/usuarios.json'
@@ -58,6 +58,11 @@ def checarCPFExistente(CPF, mostrarMsg, cadastrado, msgErro):
     if mostrarMsg and not cadastrado:
         imprimirErro(msgErro, "CPF não cadastrado!")
     return False    
+
+def resetarSaquesDiarios(extrato, saques_diarios):
+    ultimaData = datetime.strptime(list(extrato.keys())[-1], "%d/%m/%Y %H:%M:%S")
+    if ultimaData.date() < datetime.today().date(): return 0
+    else: return saques_diarios
 
 # <----------- Funções para JSON ----------->
 def carregarJSON(caminho):
@@ -103,7 +108,7 @@ def deposito(saldo, extrato):
         return saldo, extrato
 
     saldo += valor
-    extrato.update({pegarHoje() : f"+{saldo}" })
+    extrato.update({pegarHoje() : {"Deposito" : f"+{saldo}"} })
     print("\n" + "Extrato realizado com sucesso!".center(50, "="))
     print(f" Novo Saldo: R$ {saldo: .2f} ".center(50, "="))
     input("Pressione enter para continuar...")
@@ -122,7 +127,7 @@ def saque(*, saldo, extrato, numero_saques):
     print("""
  - O valor sacado não deve ser superior ao seu saldo.
  - O valor sacado não deve ser superior a R$ 500,00.
- - Só é possível sacar 3 vezes por dia.
+ - Só é possível sacar 10 vezes por dia.
     """)
     print("".center(50, "="))
     print(f"\nVocê fez {numero_saques} Saques!\n")
@@ -142,10 +147,11 @@ def saque(*, saldo, extrato, numero_saques):
     if checarLimiteSaque:
         imprimirErro("Saque", MSG_SALDO_LIMITE)
         return saldo, extrato, numero_saques
+
         
     
     saldo -= valor
-    extrato.update({pegarHoje() : f"-{valor}"})
+    extrato.update({pegarHoje() : { "Saque" : f"-{valor}"}})
     #extrato += montarExtrato("Saque", "-", valor)
     numero_saques += 1
 
@@ -162,14 +168,16 @@ def extrato(saldo, /, *, extrato_bancario):
     else:
         #print(extrato_bancario)
         for chave, valor in extrato_bancario.items():
-            print(f"-> {chave} : {valor}")
+            for move, quant in valor.items():
+                print(f"-> {chave} | {move} : {quant}")
+            
         print(f"Saldo: R$ {saldo:.2f}")
     print("".center(50,"="))
     input("Pressione enter para continuar...")
 
 # <----------- Funções de Conta ----------->
 def criarContaCorrente(CPF):
-    contaCorr = {"Agencia" : numAgencia, "CPF" : CPF, "Saldo" : 0, "Extrato" : {}}
+    contaCorr = {"Agencia" : numAgencia, "CPF" : CPF, "Saldo" : 0, "Extrato" : {}, "Saques_Diarios" : 0}
     dictJson = carregarJSON('./db/contasCorrentes.json')
 
     if dictJson == {}:
@@ -263,7 +271,7 @@ def menuPrincipal(Usuario, contaAtual):
 
     saldo = contaAtual["Saldo"]
     extrato_bancario = contaAtual["Extrato"]
-    numero_saques = 0
+    numero_saques = resetarSaquesDiarios(contaAtual["Extrato"], contaAtual["Saques_Diarios"])
     
     while True:
 
@@ -284,7 +292,7 @@ def menuPrincipal(Usuario, contaAtual):
         elif opcao == "q":
             print("\nAté logo!")
             input("Pressione enter para continuar...")       
-            return saldo, extrato_bancario
+            return saldo, extrato_bancario, numero_saques
         else:
             print("\nOperação inválida, por favor selecione novamente a operação desejada.")
             input("Pressione enter para continuar...")
@@ -328,10 +336,11 @@ def fazerLogin():
 
     usuarioAtual = carregarJSON(USUARIOS_DIR)[CPF]
 
-    resultadoSaldo, resultadoExtrato = menuPrincipal(usuarioAtual["nome"], contaAtual)
+    resultadoSaldo, resultadoExtrato, resultadoNumero_Saques = menuPrincipal(usuarioAtual["nome"], contaAtual)
 
     contaAtual["Saldo"] = resultadoSaldo
     contaAtual["Extrato"] = resultadoExtrato
+    contaAtual["Saques_Diarios"] = resultadoNumero_Saques
 
     contasCorrentes[chaveAtual] = contaAtual
 
