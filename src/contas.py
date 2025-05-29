@@ -4,7 +4,7 @@ from utils import criarTela
 from utils import checarCPFExistente
 
 def criarContaCorrente(CPF):
-    contaCorr = {"Agencia" : NUM_AGENCIA, "CPF" : CPF, "Saldo" : 0, "Extrato" : {}, "Saques_Diarios" : 0}
+    contaCorr = {"Agencia" : NUM_AGENCIA, "CPF" : CPF, "Saldo" : 0, "Extrato" : {}, "Saques_Diarios" : 0, "Transf_Diarias" : 0}
     dictJson = carregarJSON('./db/contasCorrentes.json')
 
     if dictJson == {}:

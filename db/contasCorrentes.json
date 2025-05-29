@@ -2,29 +2,93 @@
     "1": {
         "Agencia": "0001",
         "CPF": "12312315951",
-        "Saldo": 0,
-        "Extrato": {},
-        "Saques_Diarios": 0
+        "Saldo": 0.0,
+        "Extrato": {
+            "29/05/2025 03:19:28": {
+                "Transferencia": {
+                    "valor": 250.0,
+                    "remetente": "3",
+                    "destinatario": "1",
+                    "sessao": "4GMBT4"
+                }
+            },
+            "29/05/2025 03:21:45": {
+                "Sessao": "WOTRK2",
+                "Saque": "-250.0"
+            }
+        },
+        "Saques_Diarios": 1,
+        "Transf_Diarias": 0
     },
     "2": {
         "Agencia": "0001",
         "CPF": "12312315951",
-        "Saldo": 0,
-        "Extrato": {},
-        "Saques_Diarios": 0
+        "Saldo": 100.0,
+        "Extrato": {
+            "29/05/2025 03:22:58": {
+                "Transferencia": {
+                    "valor": 100.0,
+                    "remetente": "3",
+                    "destinatario": "2",
+                    "sessao": "9Q259E"
+                }
+            }
+        },
+        "Saques_Diarios": 0,
+        "Transf_Diarias": 0
     },
     "3": {
         "Agencia": "0001",
         "CPF": "666",
-        "Saldo": 0,
-        "Extrato": {},
-        "Saques_Diarios": 0
+        "Saldo": 900.0,
+        "Extrato": {
+            "29/05/2025 03:19:23": {
+                "Sessao": "4GMBT4",
+                "Deposito": "+1000.0"
+            },
+            "29/05/2025 03:19:28": {
+                "Transferencia": {
+                    "valor": 250.0,
+                    "remetente": "3",
+                    "destinatario": "1",
+                    "sessao": "4GMBT4"
+                }
+            },
+            "29/05/2025 03:22:44": {
+                "Sessao": "9Q259E",
+                "Deposito": "+1000.0"
+            },
+            "29/05/2025 03:22:58": {
+                "Transferencia": {
+                    "valor": 100.0,
+                    "remetente": "3",
+                    "destinatario": "2",
+                    "sessao": "9Q259E"
+                }
+            }
+        },
+        "Saques_Diarios": 0,
+        "Transf_Diarias": 2
     },
     "4": {
         "Agencia": "0001",
         "CPF": "12312315951",
-        "Saldo": 0,
-        "Extrato": {},
-        "Saques_Diarios": 0
+        "Saldo": 0.0,
+        "Extrato": {
+            "29/05/2025 03:19:28": {
+                "Transferencia": {
+                    "valor": 250.0,
+                    "remetente": "3",
+                    "destinatario": "1",
+                    "sessao": "4GMBT4"
+                }
+            },
+            "29/05/2025 03:21:45": {
+                "Sessao": "WOTRK2",
+                "Saque": "-250.0"
+            }
+        },
+        "Saques_Diarios": 1,
+        "Transf_Diarias": 0
     }
 }

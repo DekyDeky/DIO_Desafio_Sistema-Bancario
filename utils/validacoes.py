@@ -36,6 +36,7 @@ def resetarSaquesDiarios(extrato, saques_diarios):
     if extrato == {}:
         return 0
     else:
+        input(list(extrato.keys())[-1])
         ultimaData = datetime.strptime(list(extrato.keys())[-1], "%d/%m/%Y %H:%M:%S")
-        if ultimaData.date() < datetime.today().date(): return 0
-        else: return saques_diarios
+        if ultimaData.date() < datetime.today().date(): return True
+        else: return False

@@ -3,7 +3,7 @@ from src import carregarJSON
 from utils import imprimirErro, pegarHoje
 from utils import checarNegativo
 
-def deposito(saldo, extrato):
+def deposito(saldo, extrato, token):
 
     valor = float(input("\nInsira o valor à se depositar: "))
     
@@ -11,14 +11,14 @@ def deposito(saldo, extrato):
         return saldo, extrato
 
     saldo += valor
-    extrato.update({pegarHoje() : {"Deposito" : f"+{saldo}"} })
+    extrato.update({pegarHoje() : {"Sessao" : token, "Deposito" : f"+{saldo}"} })
     print("\n" + "Extrato realizado com sucesso!".center(50, "="))
     print(f" Novo Saldo: R$ {saldo: .2f} ".center(50, "="))
     input("Pressione enter para continuar...")
 
     return saldo, extrato
 
-def saque(*, saldo, extrato, numero_saques):
+def saque(*, saldo, extrato, numero_saques, token):
 
     checarLimiteSaques = numero_saques >= LIMITE_SAQUES
 
@@ -52,7 +52,7 @@ def saque(*, saldo, extrato, numero_saques):
         return saldo, extrato, numero_saques
 
     saldo -= valor
-    extrato.update({pegarHoje() : { "Saque" : f"-{valor}"}})
+    extrato.update({pegarHoje() : { "Sessao" : token, "Saque" : f"-{valor}"}})
     #extrato += montarExtrato("Saque", "-", valor)
     numero_saques += 1
 
@@ -70,15 +70,15 @@ def extrato(saldo, /, *, extrato_bancario):
         for chave, valor in extrato_bancario.items():
             for move, quant in valor.items():
                 if move == "Transferencia":
-                    print(f"-> {chave} | {move} : R$ {quant['valor']:.2f} | {quant['remetente']} -> {quant['destinatario']}")
-                else:
+                    print(f"-> {chave} | {move} : R$ {quant['valor']} | {quant['remetente']} -> {quant['destinatario']}")
+                elif move == "Deposito" or move == "Saque":
                     print(f"-> {chave} | {move} : R$ {quant}")
             
         print(f"Saldo: R$ {saldo:.2f}")
     print("".center(50,"="))
     input("Pressione enter para continuar...")
 
-def transferencia(saldo, extrato_bancario, totalTransferencias, numConta):
+def transferencia(saldo, extrato_bancario, totalTransferencias, numConta, token):
     
     checarLimite = totalTransferencias > LIMITE_TRANSFERENCIA
     if checarLimite:
@@ -103,7 +103,7 @@ def transferencia(saldo, extrato_bancario, totalTransferencias, numConta):
         imprimirErro("Transferência", "Não é possível transferir para si mesmo!")
         return saldo, extrato_bancario, totalTransferencias
 
-    valor = int(input("Insira o valor a ser transferido: "))
+    valor = float(input("Insira o valor a ser transferido: "))
     
     checarSaldo = valor > saldo
     if(checarNegativo(valor, "transferência")):
@@ -124,11 +124,12 @@ def transferencia(saldo, extrato_bancario, totalTransferencias, numConta):
         elif resposta == 's':
             saldo -= valor
             extrato_bancario.update({pegarHoje() : { 
-                "Transferencia" : {   
+               "Transferencia" : {   
                     "valor" : valor, 
                     "remetente" : numConta,
-                    "destinatario" : contaTransf
-                   }}})
+                    "destinatario" : contaTransf,
+                    "sessao" : token
+                   }}}) 
             totalTransferencias += 1
 
             print("\n" + "Transferência realizada com sucesso!".center(50, "="))

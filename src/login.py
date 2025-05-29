@@ -1,4 +1,4 @@
-from utils import resetarSaquesDiarios, criarTela, limparTela, checarCPFExistente, imprimirErro
+from utils import resetarSaquesDiarios, criarTela, limparTela, checarCPFExistente, imprimirErro, gerarToken
 from src import carregarJSON, escreverJSON
 from src import CONTASCORRENTS_DIR, NUM_AGENCIA, USUARIOS_DIR
 from src import funcionalidades
@@ -13,10 +13,17 @@ Insira Letra => """
 
 def menuPrincipal(Usuario, contaAtual, numConta):
 
+    tokenSessao = gerarToken()
     saldo = contaAtual["Saldo"]
     extrato_bancario = contaAtual["Extrato"]
-    numero_saques = resetarSaquesDiarios(contaAtual["Extrato"], contaAtual["Saques_Diarios"])
-    totalTransferencias = 0
+    if resetarSaquesDiarios(contaAtual["Extrato"], contaAtual["Saques_Diarios"]):
+        numero_saques = 0
+        totalTransferencias = 0
+    else:
+        numero_saques = contaAtual["Saques_Diarios"]
+        totalTransferencias = contaAtual["Transf_Diarias"]
+    #numero_saques = resetarSaquesDiarios(contaAtual["Extrato"], contaAtual["Saques_Diarios"])
+    #totalTransferencias = 0
     
     while True:
         limparTela()
@@ -26,20 +33,20 @@ def menuPrincipal(Usuario, contaAtual, numConta):
 
         if opcao == "d":
             limparTela()
-            saldo, extrato_bancario = funcionalidades.deposito(saldo, extrato_bancario)
+            saldo, extrato_bancario = funcionalidades.deposito(saldo, extrato_bancario, tokenSessao)
         elif opcao == "s":
             limparTela()
-            saldo, extrato_bancario, numero_saques = funcionalidades.saque(saldo=saldo, extrato=extrato_bancario, numero_saques=numero_saques)
+            saldo, extrato_bancario, numero_saques = funcionalidades.saque(saldo=saldo, extrato=extrato_bancario, numero_saques=numero_saques, token=tokenSessao)
         elif opcao == "e":
             limparTela()
             funcionalidades.extrato(saldo, extrato_bancario=extrato_bancario)
         elif opcao == "t":
             limparTela()
-            saldo, extrato_bancario, totalTransferencias = funcionalidades.transferencia(saldo, extrato_bancario, totalTransferencias, numConta)
+            saldo, extrato_bancario, totalTransferencias = funcionalidades.transferencia(saldo, extrato_bancario, totalTransferencias, numConta, tokenSessao)
         elif opcao == "q":
             print("\nAté logo!")
             input("Pressione enter para continuar...")       
-            return saldo, extrato_bancario, numero_saques, totalTransferencias
+            return saldo, extrato_bancario, numero_saques, totalTransferencias, tokenSessao
         else:
             print("\nOperação inválida, por favor selecione novamente a operação desejada.")
             input("Pressione enter para continuar...")
@@ -87,7 +94,15 @@ def fazerLogin():
 
     usuarioAtual = carregarJSON(USUARIOS_DIR)[CPF]
 
-    resultadoSaldo, resultadoExtrato, resultadoNumero_Saques, totalTransferencias = menuPrincipal(usuarioAtual["nome"], contaAtual, numContaAtual)
+    resultadoSaldo, resultadoExtrato, resultadoNumero_Saques, totalTransferencias, tokenSessao = menuPrincipal(usuarioAtual["nome"], contaAtual, numContaAtual)
+
+    for dia, acao in resultadoExtrato.items():
+        transferencia = acao.get("Transferencia") 
+        if transferencia and transferencia.get("sessao") == tokenSessao:
+            valorTrans = transferencia.get("valor")
+            destinatarioTrans = transferencia.get("destinatario")
+            contasCorrentes[destinatarioTrans]["Extrato"].update({dia : acao})
+            contasCorrentes[destinatarioTrans]["Saldo"] += valorTrans
 
     contaAtual["Saldo"] = resultadoSaldo
     contaAtual["Extrato"] = resultadoExtrato
